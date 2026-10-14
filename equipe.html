@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Équipe · Rendez-vous</title>
+<title>Étude VISIA · Équipe</title>
 <style>
 :root{
   --bg:#faf9f1; --surface:#ffffff; --sunk:#f0ece4; --line:#e7e2d8; --fg:#141414; --muted:#8a8478; --cap:#3d3826;
@@ -106,6 +106,9 @@ tr.withdrawn td:last-child{opacity:1}
 .note b{color:var(--warn)}
 .quest{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--bg)}
 .quest a{text-decoration:none}
+.q-ok{display:inline-block;font-size:.76rem;font-weight:600;padding:1px 8px;border-radius:999px;background:#e3f2e8;color:var(--ok);white-space:nowrap}
+.q-no{display:inline-block;font-size:.76rem;font-weight:600;padding:1px 8px;border-radius:999px;background:#fbeae4;color:var(--bad);white-space:nowrap}
+.qcell{display:grid;gap:4px;justify-items:start}
 @media (max-width:520px){.sheet{padding:14px}h1{font-size:1.5rem}}
 </style>
 </head>
@@ -134,7 +137,7 @@ tr.withdrawn td:last-child{opacity:1}
 
 <script>
 const BOOT = null;
-// ⬇︎ Collez ici l'adresse de votre application Web Apps Script (elle se termine par /exec)
+// ⬇︎ Adresse de votre application Web Apps Script (elle se termine par /exec)
 const API_URL = "https://script.google.com/macros/s/AKfycbzlqH0r-li7NKok84EGZaIA14g9P-Kjp1Cnvz2PhEMS2X90yOmxSh5DPsyCUnpjc1QoOQ/exec";
 const PAGE_MODE = "equipe";
 </script>
@@ -165,9 +168,12 @@ const freeAt=(d,t)=>CFG.cap-(occ[d+"_"+t]||0);
 const contactTxt=()=>CFG.contact?" Contact : "+CFG.contact+".":"";
 const homeUrl=()=>BOOT?CFG.home:location.origin+location.pathname;
 const noteBox=()=>CFG.note?h("div",{class:"note"},h("b",{text:"Important : "}),CFG.note):null;
+const questUrl=pid=>{if(!CFG.questionnaire)return"";if(!CFG.questField||!pid)return CFG.questionnaire;
+  const base=CFG.questionnaire.replace(/([?&])usp=[^&#]*&?/,"$1").replace(/[?&]$/,"");
+  return base+(base.includes("?")?"&":"?")+"usp=pp_url&"+CFG.questField+"="+encodeURIComponent(pid);};
 const questBox=pid=>CFG.questionnaire?h("div",{class:"quest"},
   h("span",{text:"Merci de remplir le questionnaire de l'étude"+(pid?` (ID participant : ${pid})`:"")+"."}),
-  h("a",{class:"btn primary small",href:CFG.questionnaire,target:"_blank",rel:"noopener"},"Remplir le questionnaire ↗")):null;
+  h("a",{class:"btn primary small",href:questUrl(pid),target:"_blank",rel:"noopener"},"Remplir le questionnaire ↗")):null;
 function errText(e){return String((e&&e.message)||e).replace(/^(Exception|Error):\s*/,"");}
 function status(text,kind){const s=$("#status");s.textContent=text||"";s.className="banner "+(kind||"");s.hidden=!text;}
 function field(label,id,input){return h("div",{class:"field"},h("label",{for:id,text:label}),input);}
@@ -387,11 +393,28 @@ function renderLogin(){
 async function refresh(){try{applyData(await call("adminData",pw));status("");render();}catch(e){status(errText(e),"err");}}
 async function adminDo(fn,...args){try{applyData(await call(fn,pw,...args));status("");render();}catch(e){status(errText(e),"err");}}
 
-function whoCell(r){
+function whoCell(r,withQuest){
   return h("td",{},h("div",{text:r.name||"—"}),
     (r.tel||r.mail)?h("div",{class:"sub mono",style:"font-size:.75rem",text:[r.tel,r.mail].filter(Boolean).join(" · ")}):null,
     r.notes?h("div",{class:"sub",style:"font-size:.75rem",text:r.notes}):null,
-    r.source?h("div",{class:"sub",style:"font-size:.72rem",text:r.source==="en ligne"?"inscrit·e en ligne":"inscrit·e par l'équipe"}):null);
+    r.source?h("div",{class:"sub",style:"font-size:.72rem",text:r.source==="en ligne"?"inscrit·e en ligne":"inscrit·e par l'équipe"}):null,
+    withQuest&&data&&data.questOn&&!r.cancelled?h("div",{style:"margin-top:3px"},questBadge(r)):null);
+}
+/* Questionnaire : badge + boutons */
+function questBadge(r){
+  return r.quest?h("span",{class:"q-ok",title:r.quest==="auto"?"Trouvé dans les réponses du questionnaire":"Coché à la main par l'équipe",
+    text:"✓ Questionnaire rempli"+(r.quest==="manuel"?" (coché)":"")}):h("span",{class:"q-no",text:"✗ Questionnaire non rempli"});
+}
+function questCell(r){
+  if(r.cancelled) return h("td",{class:"sub",text:"—"});
+  const box=h("div",{class:"qcell"},questBadge(r));
+  const acts=h("div",{class:"cell-actions"});
+  if(r.quest!=="auto") acts.append(h("button",{class:"btn small",title:r.quest?"Retirer la coche":"À utiliser si le questionnaire a été rempli ailleurs (papier, autre outil…)",
+    onclick:e=>{e.currentTarget.disabled=true;adminDo("adminSetQuest",r.pid,!r.quest);}},r.quest?"Décocher":"Marquer rempli"));
+  if(!r.quest&&r.mail) acts.append(h("button",{class:"btn small",title:"Envoie au volontaire un e-mail avec le lien du questionnaire",
+    onclick:async e=>{const t=e.currentTarget;t.disabled=true;t.textContent="Envoi…";try{await call("adminSendQuest",pw,r.pid);t.textContent="Relance envoyée";}catch(err){t.textContent="Échec";status(errText(err),"err");}}},"Relancer"));
+  box.append(acts);
+  return h("td",{},box);
 }
 function attButtons(r){
   const isP=r.status==="Présent", isA=r.status==="Absent";
@@ -436,7 +459,7 @@ function viewPlan(){
     if(prev&&toMin(t)-toMin(prev)>CFG.duration) tbl.append(h("tr",{class:"pause"},h("td",{colspan:"5",text:`Pause ${hm(slotEnd(prev))} – ${hm(t)}`})));
     prev=t;
     const list=by[planDay+"_"+t]||[];
-    list.forEach(r=>tbl.append(h("tr",{},h("td",{class:"mono",text:hm(t)}),h("td",{class:"code",text:r.pid}),whoCell(r),h("td",{},attButtons(r)),h("td",{},rowActions(r)))));
+    list.forEach(r=>tbl.append(h("tr",{},h("td",{class:"mono",text:hm(t)}),h("td",{class:"code",text:r.pid}),whoCell(r,true),h("td",{},attButtons(r)),h("td",{},rowActions(r)))));
     for(let i=list.length;i<CFG.cap;i++) tbl.append(h("tr",{class:"free-row"},h("td",{class:"mono",text:hm(t)}),h("td",{text:"—"}),h("td",{text:"Libre"}),h("td",{}),
       h("td",{},h("button",{class:"btn small",onclick:()=>openBook(planDay,t)},"Inscrire ici"))));
   }
@@ -486,28 +509,31 @@ function viewReg(){
   sheet.append(h("div",{class:"kpis"},
     kpi(act.length,"Inscrits"),kpi(up,"Rendez-vous à venir"),
     kpi(P,"Venus",pend?`${pend} rendez-vous passé(s) sans présence cochée`:null),
-    kpi(A,"Absents"),kpi(R.length-act.length,"Annulés")));
+    kpi(A,"Absents"),kpi(R.length-act.length,"Annulés"),
+    data.questOn?kpi(`${act.filter(r=>r.quest).length} / ${act.length}`,"Questionnaires remplis",data.questAuto?"vérifié automatiquement":"cochés à la main"):null));
+  if(data.questError) sheet.append(h("div",{class:"banner err",text:data.questError}));
   const box=h("div",{class:"reg"}), draw=()=>box.replaceChildren(regTable());
   sheet.append(h("div",{class:"daynav"},
     h("input",{type:"search",placeholder:"Rechercher : nom, ID, e-mail, téléphone",value:regQuery,oninput:e=>{regQuery=e.target.value;draw();}}),
-    h("div",{class:"seg"},...[["avenir","À venir"],["passes","Passés"],["annules","Annulés"],["tous","Tous"]].map(([k,l])=>
+    h("div",{class:"seg"},...[["avenir","À venir"],["passes","Passés"],["annules","Annulés"],["tous","Tous"],...(data.questOn?[["sansq","Questionnaire non rempli"]]:[])].map(([k,l])=>
       h("button",{"aria-pressed":String(regFilter===k),onclick:()=>{regFilter=k;render();}},l)))));
   draw();sheet.append(box);
   return sheet;
 }
 function regTable(){
   const q=regQuery.trim().toLowerCase();
-  let L=data.rows.filter(r=>regFilter==="tous"||(regFilter==="annules"?!!r.cancelled:!r.cancelled&&(regFilter==="avenir"?r.date>=today:r.date<today)));
+  let L=data.rows.filter(r=>regFilter==="tous"||(regFilter==="sansq"?!r.cancelled&&!r.quest:regFilter==="annules"?!!r.cancelled:!r.cancelled&&(regFilter==="avenir"?r.date>=today:r.date<today)));
   if(q) L=L.filter(r=>[r.pid,r.name,r.mail,r.tel].join(" ").toLowerCase().includes(q));
   L.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)*(regFilter==="passes"?-1:1));
   if(!L.length) return h("p",{class:"empty",text:"Aucun rendez-vous."});
   const tbl=h("table",{class:"list"});
-  tbl.append(h("tr",{},h("th",{text:"ID"}),h("th",{text:"Volontaire"}),h("th",{text:"Rendez-vous"}),h("th",{text:"Présence"}),h("th",{})));
+  tbl.append(h("tr",{},h("th",{text:"ID"}),h("th",{text:"Volontaire"}),h("th",{text:"Rendez-vous"}),h("th",{text:"Présence"}),data.questOn?h("th",{text:"Questionnaire"}):null,h("th",{})));
   L.forEach(r=>tbl.append(h("tr",{class:r.cancelled?"withdrawn":""},
     h("td",{class:"code",text:r.pid}),whoCell(r),
     h("td",{},h("div",{class:"chip"},h("span",{text:fmtShort(r.date)}),h("span",{class:"mono",text:hm(r.time)})),
       r.cancelled?h("span",{class:"badge-w",text:"Annulé le "+fmtShort(r.cancelled.slice(0,10))}):null),
     h("td",{},r.cancelled?null:attButtons(r)),
+    data.questOn?questCell(r):null,
     h("td",{},rowActions(r)))));
   return tbl;
 }
