@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prise de rendez-vous</title>
+<style>
+:root{
+  --bg:#faf9f1; --surface:#ffffff; --sunk:#f0ece4; --line:#e7e2d8; --fg:#141414; --muted:#8a8478; --cap:#3d3826;
+  --accent:#cb6441; --accent-fg:#ffffff; --accent-l:#f6eade; --ok:#2e7d4f; --warn:#8a5a00; --bad:#a33d1c;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace; --r:10px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:20px 60px;display:grid;gap:20px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:1.9rem;margin:0;color:var(--accent);text-wrap:balance}
+h2{font-size:1.05rem;margin:0;text-wrap:balance}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+#logo{max-height:56px;max-width:160px;width:auto;object-fit:contain}
+.top-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+#sheet-link{text-decoration:none}
+.sub{color:var(--cap);margin:2px 0 0;font-size:.92rem}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:999px;border:1px solid var(--line)}
+.tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:.88rem;padding:6px 14px;border-radius:999px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgb(0 0 0/.12)}
+button{font-family:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 14px;border-radius:var(--r);font-weight:600;font-size:.88rem;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.small{padding:4px 10px;font-size:.8rem}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.banner{padding:10px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);font-size:.9rem;word-break:break-word}
+.banner.err{border-color:var(--bad);color:var(--bad)}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:12px;border-left:4px solid var(--accent);padding:18px;display:grid;gap:18px;min-width:0}
+.step{display:grid;gap:12px;min-width:0}
+.step-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.num{font-family:var(--font-mono);font-size:.78rem;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 6px}
+.picker{display:grid;gap:12px;min-width:0}
+.daynav{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.daynav input[type=date],.daynav input[type=search]{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+.daynav input[type=search]{flex:1 1 240px;min-width:0}
+.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.day-btn{display:grid;gap:2px;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:var(--r);padding:8px 12px;cursor:pointer;font:inherit}
+.day-btn b{font-size:.92rem;text-transform:capitalize}
+.day-btn small{color:var(--muted);font-size:.76rem}
+.day-btn:hover:not(:disabled){border-color:var(--accent)}
+.day-btn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-l);box-shadow:inset 0 0 0 1px var(--accent)}
+.day-btn:disabled{opacity:.45;cursor:not-allowed;background:var(--sunk)}
+.tgroup{display:grid;gap:6px}
+.tlabel{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px}
+.time-btn{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px;padding:8px 4px;cursor:pointer;font-family:var(--font-mono);font-size:.88rem}
+.time-btn:hover:not(:disabled){border-color:var(--accent);background:var(--accent-l)}
+.time-btn:disabled{cursor:not-allowed;opacity:.4;background:var(--sunk);text-decoration:line-through}
+.time-btn.sel,.time-btn.sel:hover{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);text-decoration:none;opacity:1}
+.chosen{padding:10px 14px;border-radius:var(--r);background:var(--accent-l);border:1px solid var(--line)}
+.chosen b{text-transform:capitalize}
+.chosen.big b{font-size:1.15rem}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.field{display:grid;gap:4px;min-width:0}
+.field label{font-size:.8rem;font-weight:600;color:var(--muted)}
+input[type=text],input[type=email],input[type=tel],input[type=password],textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);flex:none}
+textarea{min-height:60px;resize:vertical}
+.consent{display:flex;gap:10px;align-items:flex-start;font-size:.88rem;cursor:pointer}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.msg{font-size:.88rem}
+.msg.ok{color:var(--ok)} .msg.err{color:var(--bad)}
+.reg{overflow-x:auto;min-width:0}
+table.list{border-collapse:collapse;width:100%;font-size:.86rem}
+table.list th,table.list td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+table.list th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);white-space:nowrap}
+table.list td.code{font-family:var(--font-mono);font-weight:500;white-space:nowrap}
+tr.pause td{background:var(--sunk);color:var(--muted);font-size:.78rem;text-align:center;padding:4px}
+tr.free-row td{color:var(--muted)}
+tr.withdrawn td{opacity:.55}
+tr.withdrawn td:last-child{opacity:1}
+.chip{display:grid;font-size:.82rem;white-space:nowrap}
+.chip .mono{color:var(--muted)}
+.cell-actions{display:flex;gap:4px;flex-wrap:wrap}
+.att{display:flex;gap:6px;flex-wrap:wrap}
+.att .btn.on-p{background:var(--ok);border-color:var(--ok);color:#fff}
+.att .btn.on-a{background:var(--bad);border-color:var(--bad);color:#fff}
+.badge-w{display:inline-block;font-size:.72rem;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--sunk);color:var(--cap);margin-top:3px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);display:grid;gap:4px}
+.kpi .v{font-size:1.6rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.kpi .l{font-weight:600;font-size:.86rem}
+.seg{display:inline-flex;gap:4px;background:var(--sunk);padding:3px;border-radius:999px;border:1px solid var(--line);flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:.8rem;padding:4px 12px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgb(0 0 0/.12)}
+.st-p{color:var(--ok);font-weight:600} .st-a{color:var(--bad);font-weight:600}
+.empty{color:var(--muted);font-size:.9rem;padding:8px 0;margin:0}
+.login{max-width:380px}
+.modal{position:fixed;inset:0;background:rgb(0 0 0/.45);display:grid;place-items:center;padding:16px;z-index:10}
+.modal .sheet{max-width:720px;width:100%;max-height:90vh;overflow:auto}
+.loading{color:var(--muted)}
+.note{padding:10px 14px;border-radius:var(--r);border:1px solid var(--warn);background:#fff8e6;color:var(--cap);font-size:.92rem}
+.note b{color:var(--warn)}
+.quest{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--bg)}
+.quest a{text-decoration:none}
+@media (max-width:520px){.sheet{padding:14px}h1{font-size:1.5rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <img id="logo" alt="" hidden>
+      <div>
+        <h1 id="title"></h1>
+        <p class="sub" id="subtitle"></p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="tabs" role="tablist" id="tabs" hidden>
+        <button role="tab" data-tab="plan" aria-selected="true">Planning</button>
+        <button role="tab" data-tab="reg" aria-selected="false">Volontaires</button>
+      </div>
+      <a id="sheet-link" class="btn small" target="_blank" rel="noopener" hidden>Ouvrir le Google Sheet ↗</a>
+    </div>
+  </header>
+  <div id="status" class="banner" hidden></div>
+  <main id="view"><p class="loading">Chargement des créneaux…</p></main>
+</div>
+<div id="modal-root"></div>
+
+<script>
+const BOOT = null;
+// ⬇︎ Collez ici l'adresse de votre application Web Apps Script (elle se termine par /exec)
+const API_URL = "https://script.google.com/macros/s/VOTRE_ID/exec";
+const PAGE_MODE = "";
+</script>
+<script>
+let CFG=null, MODE="public", PID="", TOK="";
+let occ={}, today="", dates=[], full=false;
+let pw=null, data=null, tab="plan", busy=false;
+let pick=null, form={}, result=null, mine=null, changing=false;
+let planDay=null, regFilter="avenir", regQuery="";
+
+/* ---------- utilitaires ---------- */
+const $=(s,el=document)=>el.querySelector(s);
+function h(tag,attrs={},...kids){const e=document.createElement(tag);for(const k in attrs){const v=attrs[k];if(v==null||v===false)continue;if(k==="class")e.className=v;else if(k==="text")e.textContent=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?"":v);}for(const kid of kids.flat()){if(kid==null||kid===false)continue;e.append(kid instanceof Node?kid:document.createTextNode(kid));}return e;}
+const toDate=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);};
+const iso=dt=>dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+const addDays=(s,n)=>{const d=toDate(s);d.setDate(d.getDate()+n);return iso(d);};
+const fmtShort=s=>toDate(s).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});
+const fmtLong=s=>toDate(s).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+const fmtDM=s=>toDate(s).toLocaleDateString("fr-FR",{day:"numeric",month:"long"});
+const hm=t=>t.replace(":","h");
+const toMin=t=>{const [a,b]=t.split(":").map(Number);return a*60+b;};
+const fromMin=m=>String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+const slotEnd=t=>fromMin(toMin(t)+CFG.duration);
+const isWorkday=s=>{const w=toDate(s).getDay();return w>=1&&w<=5&&(CFG.closed||[]).indexOf(s)<0;};
+const nextWorkday=(s,dir)=>{let d=s;for(let i=0;i<30;i++){d=addDays(d,dir);if(isWorkday(d))return d;}return d;};
+const mondayOf=s=>addDays(s,-((toDate(s).getDay()+6)%7));
+const freeAt=(d,t)=>CFG.cap-(occ[d+"_"+t]||0);
+const contactTxt=()=>CFG.contact?" Contact : "+CFG.contact+".":"";
+const homeUrl=()=>BOOT?CFG.home:location.origin+location.pathname;
+const noteBox=()=>CFG.note?h("div",{class:"note"},h("b",{text:"Important : "}),CFG.note):null;
+const questBox=pid=>CFG.questionnaire?h("div",{class:"quest"},
+  h("span",{text:"Merci de remplir le questionnaire de l'étude"+(pid?` (ID participant : ${pid})`:"")+"."}),
+  h("a",{class:"btn primary small",href:CFG.questionnaire,target:"_blank",rel:"noopener"},"Remplir le questionnaire ↗")):null;
+function errText(e){return String((e&&e.message)||e).replace(/^(Exception|Error):\s*/,"");}
+function status(text,kind){const s=$("#status");s.textContent=text||"";s.className="banner "+(kind||"");s.hidden=!text;}
+function field(label,id,input){return h("div",{class:"field"},h("label",{for:id,text:label}),input);}
+function armDelete(btn,fn){
+  if(btn.dataset.arm){fn(btn);return;}
+  const label=btn.textContent;btn.dataset.arm="1";btn.textContent="Confirmer ?";
+  setTimeout(()=>{if(btn.isConnected&&btn.dataset.arm){delete btn.dataset.arm;btn.textContent=label;}},4000);
+}
+async function copyText(text,btn){try{await navigator.clipboard.writeText(text);btn.textContent="Copié";}catch(e){status(text,"");}}
+
+/* Appel au serveur : google.script.run (page Google) ou fetch (page GitHub) */
+function call(fn,...args){
+  if(window.google&&google.script&&google.script.run)
+    return new Promise((res,rej)=>google.script.run.withSuccessHandler(res).withFailureHandler(e=>rej(e&&e.message?e:new Error(String(e))))[fn](...args));
+  return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args})})
+    .then(r=>{if(!r.ok)throw new Error("Serveur injoignable ("+r.status+").");return r.json();})
+    .then(j=>{if(!j.ok)throw new Error(j.error);return j.result;});
+}
+
+/* ---------- démarrage ---------- */
+async function start(){
+  try{
+    if(BOOT){CFG=BOOT;MODE=BOOT.mode;PID=BOOT.pid;TOK=BOOT.tok;}
+    else{
+      if(!API_URL||API_URL.indexOf("VOTRE_ID")>=0){$("#view").replaceChildren();status("Configuration : collez l'adresse /exec de votre Apps Script dans index.html (const API_URL).","err");return;}
+      const q=new URLSearchParams(location.search);
+      MODE=PAGE_MODE||(q.get("page")==="equipe"?"equipe":q.get("page")==="rdv"?"rdv":"public");
+      PID=q.get("code")||"";TOK=q.get("t")||"";
+      CFG=await call("getConfig");
+    }
+  }catch(e){$("#view").replaceChildren();status("Impossible de charger la page : "+errText(e),"err");return;}
+  today=CFG.today;dates=CFG.dates;
+  setupHeader();
+  if(MODE==="equipe"){renderLogin();return;}
+  if(MODE==="rdv"){
+    try{setMine(await call("getMine",PID,TOK));render();}
+    catch(e){$("#view").replaceChildren();status(errText(e),"err");}
+    return;
+  }
+  try{await refreshAvail();}catch(e){$("#view").replaceChildren();status("Impossible de charger les créneaux : "+errText(e),"err");return;}
+  render();
+}
+async function refreshAvail(){const a=await call("getAvailability");occ=a.occ;dates=a.dates;today=a.today;full=a.full;}
+function setMine(m){mine=m;occ=m.occ;dates=m.dates;today=m.today;}
+function applyData(d){data=d;occ=d.occ;today=d.today;if(d.sheetUrl){const a=$("#sheet-link");a.href=d.sheetUrl;a.hidden=false;}}
+
+function setupHeader(){
+  const T=CFG.times, range=T.length?hm(T[0])+"–"+hm(slotEnd(T[T.length-1])):"";
+  const suffix=MODE==="equipe"?" · Équipe":MODE==="rdv"?" · Mon rendez-vous":" · Inscription";
+  $("#title").textContent=CFG.study+(MODE==="equipe"?" · Équipe":"");
+  document.title=CFG.study+suffix;
+  $("#subtitle").textContent=MODE==="equipe"
+    ?`Créneaux de ${CFG.duration} min · ${range} · du lundi au vendredi · ${CFG.location}`
+    :MODE==="rdv"?`Vous pouvez déplacer ou annuler votre rendez-vous jusqu'à ${CFG.deadline===1?"la veille":CFG.deadline+" jours avant"}.`
+    :`Réservez un rendez-vous de ${CFG.duration} minutes, du lundi au vendredi. Lieu : ${CFG.location}.`;
+  if(CFG.logo){const l=$("#logo");l.src=CFG.logo;l.alt=CFG.study;l.hidden=false;l.onerror=()=>{l.hidden=true;};}
+}
+document.querySelectorAll("#tabs button").forEach(b=>b.addEventListener("click",()=>{tab=b.dataset.tab;document.querySelectorAll("#tabs button").forEach(x=>x.setAttribute("aria-selected",String(x===b)));status("");render();}));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#modal-root").replaceChildren();});
+
+function render(){
+  const v=$("#view");
+  if(MODE==="rdv") return v.replaceChildren(viewMine());
+  if(MODE==="equipe") return v.replaceChildren(tab==="reg"?viewReg():viewPlan());
+  v.replaceChildren(viewBook());
+}
+
+/* ---------- choix d'un jour et d'une heure ----------
+   o.value : créneau sélectionné ; o.onPick(p) ; o.team : toutes les dates (navigation jour par jour) */
+function picker(o){
+  const root=h("div",{class:"picker"});
+  const dayFree=d=>CFG.times.filter(t=>freeAt(d,t)>0).length;
+  let day=o.value?o.value.date:null;
+  if(o.team){if(!day)day=isWorkday(today)?today:nextWorkday(today,1);}
+  else if(!day||dates.indexOf(day)<0) day=dates.find(d=>dayFree(d)>0)||dates[0];
+  function times(d){
+    const groups=[];let prev=null;
+    for(const t of CFG.times){if(!prev||toMin(t)-toMin(prev)>CFG.duration)groups.push([]);groups[groups.length-1].push(t);prev=t;}
+    return groups.map(g=>h("div",{class:"tgroup"},
+      h("div",{class:"tlabel",text:(toMin(g[0])<720?"Matin":"Après-midi")+` · ${hm(g[0])}–${hm(slotEnd(g[g.length-1]))}`}),
+      h("div",{class:"times"},...g.map(t=>{
+        const sel=o.value&&o.value.date===d&&o.value.time===t, free=freeAt(d,t);
+        return h("button",{class:"time-btn"+(sel?" sel":""),disabled:!sel&&(free<=0||busy),
+          "aria-label":`${fmtLong(d)} ${hm(t)}${sel?", choisi":free<=0?", pris":", libre"}`,
+          onclick:()=>o.onPick({date:d,time:t})},hm(t));
+      }))));
+  }
+  function draw(){
+    const parts=[];
+    if(o.team){
+      parts.push(h("div",{class:"daynav"},
+        h("button",{class:"btn small",onclick:()=>{day=nextWorkday(day,-1);draw();}},"← Jour précédent"),
+        h("input",{type:"date",value:day,onchange:e=>{if(e.target.value){day=e.target.value;draw();}}}),
+        h("button",{class:"btn small",onclick:()=>{day=nextWorkday(day,1);draw();}},"Jour suivant →"),
+        h("span",{class:"sub",text:fmtLong(day)})));
+      parts.push(isWorkday(day)?h("div",{class:"step"},...times(day)):h("p",{class:"empty",text:"Pas de rendez-vous ce jour-là (week-end ou jour fermé)."}));
+    }else{
+      if(!dates.length){root.replaceChildren(h("p",{class:"empty",text:"Aucune date n'est ouverte aux inscriptions pour le moment."+contactTxt()}));return;}
+      const weeks=[...new Set(dates.map(mondayOf))], wi=weeks.indexOf(mondayOf(day));
+      const goWeek=w=>{const l=dates.filter(d=>mondayOf(d)===w);day=l.find(d=>dayFree(d)>0)||l[0];draw();};
+      parts.push(h("div",{class:"daynav"},
+        h("button",{class:"btn small",disabled:wi<=0,onclick:()=>goWeek(weeks[wi-1])},"← Semaine précédente"),
+        h("b",{text:"Semaine du "+fmtDM(weeks[wi])}),
+        h("button",{class:"btn small",disabled:wi>=weeks.length-1,onclick:()=>goWeek(weeks[wi+1])},"Semaine suivante →")));
+      parts.push(h("div",{class:"days"},...dates.filter(d=>mondayOf(d)===weeks[wi]).map(d=>{
+        const n=dayFree(d), mine=o.value&&o.value.date===d;
+        return h("button",{class:"day-btn","aria-pressed":String(d===day),disabled:n===0&&!mine,onclick:()=>{day=d;draw();}},
+          h("b",{text:fmtShort(d)}),h("small",{text:n?n+(n>1?" créneaux libres":" créneau libre"):"complet"}));
+      })));
+      parts.push(h("div",{class:"step"},...times(day)));
+    }
+    root.replaceChildren(...parts);
+  }
+  draw();return root;
+}
+
+/* ---------- inscription (volontaires) ---------- */
+function viewBook(){
+  const sheet=h("div",{class:"sheet"});
+  if(result) return viewResult(sheet);
+  if(full){sheet.append(h("p",{class:"empty",text:"Les inscriptions sont complètes. Merci de votre intérêt."+contactTxt()}));return sheet;}
+  sheet.append(h("div",{class:"step"},
+    h("div",{class:"step-h"},h("span",{class:"num",text:"1"}),h("h2",{text:"Choisissez un jour et une heure"}),
+      h("span",{class:"sub",text:`Rendez-vous de ${CFG.duration} minutes, une personne par créneau.`})),
+    picker({value:pick,onPick:p=>{pick=p;status("");render();setTimeout(()=>{const el=$("#step2");if(el)el.scrollIntoView({behavior:"smooth",block:"start"});},30);}})));
+  if(!pick) return sheet;
+  const inp=(id,type,k,ac)=>h("input",{type,id,value:form[k]||"",autocomplete:ac,oninput:e=>{form[k]=e.target.value;}});
+  sheet.append(h("div",{class:"step",id:"step2"},
+    h("div",{class:"step-h"},h("span",{class:"num",text:"2"}),h("h2",{text:"Vos coordonnées"})),
+    h("div",{class:"chosen"},h("b",{text:`${fmtLong(pick.date)} à ${hm(pick.time)}`}),h("span",{class:"sub",text:` (jusqu'à ${hm(slotEnd(pick.time))}) · ${CFG.location}`})),
+    noteBox(),
+    h("div",{class:"form"},
+      field("Nom et prénom *","f-name",inp("f-name","text","name","name")),
+      field("Téléphone *","f-tel",inp("f-tel","tel","tel","tel")),
+      field("E-mail * (confirmation et rappel)","f-mail",inp("f-mail","email","mail","email"))),
+    h("label",{class:"consent"},h("input",{type:"checkbox",id:"f-consent",checked:form.consent||null,onchange:e=>{form.consent=e.target.checked;}}),
+      h("span",{text:"* J'accepte que mes coordonnées soient utilisées par l'équipe de l'étude uniquement pour organiser mon rendez-vous et me contacter à ce sujet."}))));
+  const msg=h("span",{class:"msg"});
+  sheet.append(h("div",{class:"actions"},
+    h("button",{class:"btn primary",id:"btn-confirm",disabled:busy,onclick:()=>confirmBooking(msg)},"Confirmer le rendez-vous"),
+    h("button",{class:"btn",onclick:()=>{pick=null;render();}},"Changer de créneau"),msg));
+  return sheet;
+}
+async function confirmBooking(msg){
+  const req={date:pick.date,time:pick.time,name:(form.name||"").trim(),tel:(form.tel||"").trim(),mail:(form.mail||"").trim(),consent:!!form.consent};
+  const err=!req.name?"Indiquez votre nom.":!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.mail)?"Indiquez une adresse e-mail valide.":req.tel.replace(/\D/g,"").length<9?"Indiquez un numéro de téléphone valide.":!req.consent?"Merci de cocher la case d'accord (obligatoire).":"";
+  if(err){msg.className="msg err";msg.textContent=err;return;}
+  busy=true;$("#btn-confirm").disabled=true;msg.className="msg";msg.textContent="Enregistrement…";
+  try{
+    const r=await call("publicBook",req);
+    busy=false;result=r.already?{already:true,mailed:r.mailed}:{...r,name:req.name,mail:req.mail};
+    pick=null;form={};status("");render();window.scrollTo({top:0,behavior:"smooth"});
+  }catch(e){
+    busy=false;
+    try{await refreshAvail();}catch(_){}
+    if(pick&&freeAt(pick.date,pick.time)<=0)pick=null;
+    render();status(errText(e),"err");window.scrollTo({top:0,behavior:"smooth"});
+  }
+}
+function viewResult(sheet){
+  const r=result;
+  if(r.already){
+    sheet.append(h("h2",{text:"Vous êtes déjà inscrit·e"}),
+      h("p",{class:"sub",text:(r.mailed?"Nous vous avons renvoyé votre rendez-vous par e-mail, avec le lien pour le déplacer ou l'annuler. ":"")+"Pour toute question, contactez l'équipe de l'étude."+contactTxt()}));
+    return sheet;
+  }
+  sheet.append(h("h2",{text:"Votre rendez-vous est confirmé"}),
+    h("div",{class:"chosen big"},h("b",{text:`${fmtLong(r.date)} à ${hm(r.time)}`}),h("div",{class:"sub",text:`Durée : ${CFG.duration} minutes · Lieu : ${CFG.location}`})),
+    h("p",{},"Votre ID participant : ",h("b",{class:"mono",text:r.pid}),". Notez-le, il vous sera demandé le jour du rendez-vous."),
+    noteBox(),questBox(r.pid),
+    r.mail?h("p",{class:"sub",text:`Un e-mail de confirmation a été envoyé à ${r.mail}, avec un fichier pour l'ajouter à votre agenda et un lien pour déplacer ou annuler le rendez-vous.`}):null);
+  return sheet;
+}
+
+/* ---------- volontaire : mon rendez-vous ---------- */
+function viewMine(){
+  const m=mine, sheet=h("div",{class:"sheet"});
+  sheet.append(h("h2",{text:(m.name?m.name+" · ":"")+"ID "+m.pid}));
+  if(m.cancelled){
+    sheet.append(h("p",{text:"Ce rendez-vous a été annulé."}),homeUrl()?h("p",{},h("a",{href:homeUrl(),target:"_top",class:"btn primary"},"Prendre un nouveau rendez-vous")):null);
+    return sheet;
+  }
+  sheet.append(h("div",{class:"chosen big"},h("b",{text:`${fmtLong(m.date)} à ${hm(m.time)}`}),h("div",{class:"sub",text:`Durée : ${CFG.duration} minutes · Lieu : ${CFG.location}`})));
+  if(!m.status) sheet.append(...[noteBox(),questBox(m.pid)].filter(Boolean));
+  if(m.status==="Présent"){sheet.append(h("p",{class:"msg ok",text:"Votre visite a bien eu lieu. Merci pour votre participation !"}));return sheet;}
+  if(!m.canChange){sheet.append(h("p",{class:"sub",text:"Pour modifier ou annuler ce rendez-vous maintenant, contactez l'équipe de l'étude."+contactTxt()}));return sheet;}
+  const msg=h("span",{class:"msg"});
+  sheet.append(h("div",{class:"actions"},
+    h("button",{class:"btn",onclick:()=>{changing=!changing;render();}},changing?"Fermer":"Changer l'horaire"),
+    h("button",{class:"btn danger",onclick:e=>armDelete(e.currentTarget,async()=>{
+      msg.className="msg";msg.textContent="Annulation…";
+      try{setMine(await call("cancelMine",PID,TOK));changing=false;render();status("Votre rendez-vous est annulé. Un e-mail de confirmation vous a été envoyé.","");}
+      catch(err){msg.className="msg err";msg.textContent=errText(err);}
+    })},"Annuler mon rendez-vous"),msg));
+  if(changing) sheet.append(h("div",{class:"step"},h("p",{class:"sub",text:"Choisissez un nouveau créneau :"}),
+    picker({value:{date:m.date,time:m.time},onPick:async p=>{
+      if(p.date===m.date&&p.time===m.time)return;
+      busy=true;msg.className="msg";msg.textContent="Enregistrement…";
+      try{setMine(await call("changeMine",PID,TOK,p.date,p.time));changing=false;busy=false;render();
+        status(`Rendez-vous déplacé au ${fmtLong(p.date)} à ${hm(p.time)}. Un e-mail de confirmation vous a été envoyé.`,"");}
+      catch(err){busy=false;try{setMine(await call("getMine",PID,TOK));}catch(_){}render();status(errText(err),"err");}
+    }})));
+  return sheet;
+}
+
+/* ---------- équipe ---------- */
+function renderLogin(){
+  const msg=h("span",{class:"msg"});
+  const inp=h("input",{type:"password",id:"pw",autocomplete:"current-password"});
+  const go=async()=>{msg.className="msg";msg.textContent="Vérification…";
+    try{applyData(await call("adminData",inp.value));pw=inp.value;$("#tabs").hidden=false;render();}
+    catch(e){msg.className="msg err";msg.textContent=errText(e);}};
+  inp.addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+  $("#view").replaceChildren(h("div",{class:"sheet login"},h("h2",{text:"Accès équipe"}),field("Mot de passe","pw",inp),h("div",{class:"actions"},h("button",{class:"btn primary",onclick:go},"Ouvrir"),msg)));
+  setTimeout(()=>inp.focus(),50);
+}
+async function refresh(){try{applyData(await call("adminData",pw));status("");render();}catch(e){status(errText(e),"err");}}
+async function adminDo(fn,...args){try{applyData(await call(fn,pw,...args));status("");render();}catch(e){status(errText(e),"err");}}
+
+function whoCell(r){
+  return h("td",{},h("div",{text:r.name||"—"}),
+    (r.tel||r.mail)?h("div",{class:"sub mono",style:"font-size:.75rem",text:[r.tel,r.mail].filter(Boolean).join(" · ")}):null,
+    r.notes?h("div",{class:"sub",style:"font-size:.75rem",text:r.notes}):null,
+    r.source?h("div",{class:"sub",style:"font-size:.72rem",text:r.source==="en ligne"?"inscrit·e en ligne":"inscrit·e par l'équipe"}):null);
+}
+function attButtons(r){
+  const isP=r.status==="Présent", isA=r.status==="Absent";
+  const set=async(st,btn)=>{btn.disabled=true;try{applyData(await call("adminSetStatus",pw,r.pid,st));render();}catch(e){status(errText(e),"err");btn.disabled=false;}};
+  return h("div",{class:"att"},
+    h("button",{class:"btn small"+(isP?" on-p":""),"aria-pressed":String(isP),onclick:e=>set(isP?"":"present",e.currentTarget)},"✓ Présent"),
+    h("button",{class:"btn small"+(isA?" on-a":""),"aria-pressed":String(isA),onclick:e=>set(isA?"":"absent",e.currentTarget)},"✗ Absent"));
+}
+function rowActions(r){
+  const a=h("div",{class:"cell-actions"});
+  const del=h("button",{class:"btn small danger",title:"Efface complètement la ligne (erreur de saisie, doublon…), sans e-mail",onclick:e=>armDelete(e.currentTarget,()=>adminDo("adminRemove",r.pid))},"Supprimer");
+  if(r.cancelled){a.append(del);return a;}
+  a.append(
+    h("button",{class:"btn small",title:"Le volontaire reçoit un e-mail avec le nouvel horaire",onclick:()=>openMove(r)},"Déplacer"),
+    r.link?h("button",{class:"btn small",title:"Lien personnel du volontaire pour déplacer ou annuler",onclick:e=>copyText(r.link,e.currentTarget)},"Copier son lien"):null,
+    r.mail?h("button",{class:"btn small",onclick:async e=>{const t=e.currentTarget;t.disabled=true;t.textContent="Envoi…";try{await call("adminSendRecap",pw,r.pid);t.textContent="Envoyé";}catch(err){t.textContent="Échec";status(errText(err),"err");}}},"Renvoyer l'e-mail"):null,
+    h("button",{class:"btn small",title:"Annule le rendez-vous et libère le créneau (le volontaire est prévenu par e-mail)",onclick:e=>armDelete(e.currentTarget,()=>adminDo("adminCancel",r.pid))},"Annuler"),
+    del);
+  return a;
+}
+function modal(sheet){const root=$("#modal-root");root.replaceChildren(h("div",{class:"modal",onclick:e=>{if(e.target===e.currentTarget)root.replaceChildren();}},sheet));}
+const closeModal=()=>$("#modal-root").replaceChildren();
+
+/* Planning du jour */
+function viewPlan(){
+  if(!planDay) planDay=isWorkday(today)?today:nextWorkday(today,1);
+  const sheet=h("div",{class:"sheet"});
+  const by={};data.rows.forEach(r=>{if(!r.cancelled)(by[r.date+"_"+r.time]??=[]).push(r);});
+  const n=data.rows.filter(r=>!r.cancelled&&r.date===planDay).length;
+  sheet.append(h("div",{class:"step-h"},h("h2",{text:"Planning du jour"}),h("span",{style:"flex:1"}),h("button",{class:"btn small",onclick:refresh},"Actualiser")));
+  sheet.append(h("div",{class:"daynav"},
+    h("button",{class:"btn small",onclick:()=>{planDay=nextWorkday(planDay,-1);render();}},"← Jour précédent"),
+    h("input",{type:"date",value:planDay,onchange:e=>{if(e.target.value){planDay=e.target.value;render();}}}),
+    h("button",{class:"btn small",onclick:()=>{planDay=nextWorkday(planDay,1);render();}},"Jour suivant →"),
+    h("button",{class:"btn small",onclick:()=>{planDay=isWorkday(today)?today:nextWorkday(today,1);render();}},"Aujourd'hui"),
+    h("span",{class:"sub",text:`${fmtLong(planDay)} · ${n} / ${CFG.times.length*CFG.cap} créneaux réservés`})));
+  if(!isWorkday(planDay)){sheet.append(h("p",{class:"empty",text:"Pas de rendez-vous ce jour-là (week-end ou jour fermé)."}));return sheet;}
+  const tbl=h("table",{class:"list"});
+  tbl.append(h("tr",{},h("th",{text:"Heure"}),h("th",{text:"ID"}),h("th",{text:"Volontaire"}),h("th",{text:"Présence"}),h("th",{})));
+  let prev=null;
+  for(const t of CFG.times){
+    if(prev&&toMin(t)-toMin(prev)>CFG.duration) tbl.append(h("tr",{class:"pause"},h("td",{colspan:"5",text:`Pause ${hm(slotEnd(prev))} – ${hm(t)}`})));
+    prev=t;
+    const list=by[planDay+"_"+t]||[];
+    list.forEach(r=>tbl.append(h("tr",{},h("td",{class:"mono",text:hm(t)}),h("td",{class:"code",text:r.pid}),whoCell(r),h("td",{},attButtons(r)),h("td",{},rowActions(r)))));
+    for(let i=list.length;i<CFG.cap;i++) tbl.append(h("tr",{class:"free-row"},h("td",{class:"mono",text:hm(t)}),h("td",{text:"—"}),h("td",{text:"Libre"}),h("td",{}),
+      h("td",{},h("button",{class:"btn small",onclick:()=>openBook(planDay,t)},"Inscrire ici"))));
+  }
+  sheet.append(h("div",{class:"reg"},tbl));
+  return sheet;
+}
+function openBook(date,time){
+  const f={}, msg=h("span",{class:"msg"});
+  const inp=(id,type,k,cls)=>h("input",{type,id,class:cls,autocomplete:"off",oninput:e=>{f[k]=e.target.value;}});
+  const go=async btn=>{btn.disabled=true;msg.className="msg";msg.textContent="Enregistrement…";
+    try{
+      const r=await call("adminBook",pw,{date,time,pid:f.pid||"",name:f.name||"",tel:f.tel||"",mail:f.mail||"",notes:$("#m-notes").value});
+      applyData(r.data);closeModal();render();status(`${r.pid} inscrit·e le ${fmtLong(date)} à ${hm(time)}`+(f.mail?" · e-mail de confirmation envoyé.":"."),"");
+    }catch(e){btn.disabled=false;msg.className="msg err";msg.textContent=errText(e);}};
+  modal(h("div",{class:"sheet",role:"dialog","aria-modal":"true"},
+    h("div",{class:"step-h"},h("h2",{text:`Inscrire · ${fmtLong(date)} à ${hm(time)}`}),h("span",{style:"flex:1"}),h("button",{class:"btn small",onclick:closeModal},"Fermer")),
+    h("div",{class:"form"},
+      field("ID (vide = automatique)","m-code",inp("m-code","text","pid","mono")),
+      field("Nom et prénom","m-name",inp("m-name","text","name")),
+      field("Téléphone","m-tel",inp("m-tel","tel","tel")),
+      field("E-mail","m-mail",inp("m-mail","email","mail"))),
+    field("Notes","m-notes",h("textarea",{id:"m-notes"})),
+    h("div",{class:"actions"},h("button",{class:"btn primary",onclick:e=>go(e.currentTarget)},"Enregistrer"),msg)));
+  setTimeout(()=>{const x=$("#m-name");if(x)x.focus();},50);
+}
+function openMove(r){
+  const msg=h("span",{class:"msg"});
+  modal(h("div",{class:"sheet",role:"dialog","aria-modal":"true"},
+    h("div",{class:"step-h"},h("h2",{text:`Déplacer ${r.pid}${r.name?" · "+r.name:""}`}),h("span",{style:"flex:1"}),h("button",{class:"btn small",onclick:closeModal},"Fermer")),
+    h("p",{class:"sub",text:`Actuellement : ${fmtLong(r.date)} à ${hm(r.time)}.`+(r.mail?" Le volontaire recevra un e-mail avec le nouvel horaire.":"")}),
+    picker({team:true,value:{date:r.date,time:r.time},onPick:async p=>{
+      if(p.date===r.date&&p.time===r.time)return;
+      msg.className="msg";msg.textContent="Enregistrement…";
+      try{applyData(await call("adminMove",pw,r.pid,p.date,p.time));closeModal();render();status(`${r.pid} déplacé·e au ${fmtLong(p.date)} à ${hm(p.time)}.`,"");}
+      catch(e){msg.className="msg err";msg.textContent=errText(e);}
+    }}),
+    h("div",{class:"actions"},msg)));
+}
+
+/* Liste des volontaires */
+function viewReg(){
+  const sheet=h("div",{class:"sheet"}), R=data.rows, act=R.filter(r=>!r.cancelled);
+  const P=act.filter(r=>r.status==="Présent").length, A=act.filter(r=>r.status==="Absent").length;
+  const up=act.filter(r=>r.date>=today&&!r.status).length, pend=act.filter(r=>r.date<today&&!r.status).length;
+  const kpi=(v,l,s)=>h("div",{class:"kpi"},h("div",{class:"v",text:String(v)}),h("div",{class:"l",text:l}),s?h("div",{class:"sub",style:"font-size:.78rem",text:s}):null);
+  sheet.append(h("div",{class:"step-h"},h("h2",{text:"Volontaires"}),h("span",{class:"sub",text:"la liste complète est aussi dans le Google Sheet"}),h("span",{style:"flex:1"}),h("button",{class:"btn small",onclick:refresh},"Actualiser")));
+  sheet.append(h("div",{class:"kpis"},
+    kpi(act.length,"Inscrits"),kpi(up,"Rendez-vous à venir"),
+    kpi(P,"Venus",pend?`${pend} rendez-vous passé(s) sans présence cochée`:null),
+    kpi(A,"Absents"),kpi(R.length-act.length,"Annulés")));
+  const box=h("div",{class:"reg"}), draw=()=>box.replaceChildren(regTable());
+  sheet.append(h("div",{class:"daynav"},
+    h("input",{type:"search",placeholder:"Rechercher : nom, ID, e-mail, téléphone",value:regQuery,oninput:e=>{regQuery=e.target.value;draw();}}),
+    h("div",{class:"seg"},...[["avenir","À venir"],["passes","Passés"],["annules","Annulés"],["tous","Tous"]].map(([k,l])=>
+      h("button",{"aria-pressed":String(regFilter===k),onclick:()=>{regFilter=k;render();}},l)))));
+  draw();sheet.append(box);
+  return sheet;
+}
+function regTable(){
+  const q=regQuery.trim().toLowerCase();
+  let L=data.rows.filter(r=>regFilter==="tous"||(regFilter==="annules"?!!r.cancelled:!r.cancelled&&(regFilter==="avenir"?r.date>=today:r.date<today)));
+  if(q) L=L.filter(r=>[r.pid,r.name,r.mail,r.tel].join(" ").toLowerCase().includes(q));
+  L.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)*(regFilter==="passes"?-1:1));
+  if(!L.length) return h("p",{class:"empty",text:"Aucun rendez-vous."});
+  const tbl=h("table",{class:"list"});
+  tbl.append(h("tr",{},h("th",{text:"ID"}),h("th",{text:"Volontaire"}),h("th",{text:"Rendez-vous"}),h("th",{text:"Présence"}),h("th",{})));
+  L.forEach(r=>tbl.append(h("tr",{class:r.cancelled?"withdrawn":""},
+    h("td",{class:"code",text:r.pid}),whoCell(r),
+    h("td",{},h("div",{class:"chip"},h("span",{text:fmtShort(r.date)}),h("span",{class:"mono",text:hm(r.time)})),
+      r.cancelled?h("span",{class:"badge-w",text:"Annulé le "+fmtShort(r.cancelled.slice(0,10))}):null),
+    h("td",{},r.cancelled?null:attButtons(r)),
+    h("td",{},rowActions(r)))));
+  return tbl;
+}
+
+start();
+</script>
+</body>
+</html>
